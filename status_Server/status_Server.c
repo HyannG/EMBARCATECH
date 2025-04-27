@@ -11,7 +11,6 @@
 #include "task.h"
 #include "semphr.h"
 
-// Definições de hardware e constantes
 #define LED_PIN 13         
 #define BUTTON1_PIN 5     
 const int MIC = 28;  
@@ -21,8 +20,8 @@ const float SOUND_OFFSET = 1.65f;
 const float SOUND_THRESHOLD_LOW = 0.05f;
 const float SOUND_THRESHOLD_MEDIUM = 0.15f; 
 const float SOUND_THRESHOLD_HIGH = 0.3f;
-#define WIFI_SSID "wifi nome"     
-#define WIFI_PASS "sua senha" 
+#define WIFI_SSID "SARA"    
+#define WIFI_PASS "Phb##1586"
 
 SemaphoreHandle_t xMutex;
 char button_message[50] = "Botão sem interação";
