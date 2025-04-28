@@ -20,6 +20,8 @@ const float SOUND_OFFSET = 1.65f;
 const float SOUND_THRESHOLD_LOW = 0.05f;
 const float SOUND_THRESHOLD_MEDIUM = 0.15f; 
 const float SOUND_THRESHOLD_HIGH = 0.3f;
+#define WIFI_SSID "rede wifi"    
+#define WIFI_PASS "sua senha"
 #define WIFI_SSID "SARA"    
 #define WIFI_PASS "Phb##1586"
 
