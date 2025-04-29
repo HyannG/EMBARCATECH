@@ -17,9 +17,9 @@ const int MIC = 28;
 const int ADC_RES = 4095;    
 const float ADC_REF = 3.3f;  
 const float SOUND_OFFSET = 1.65f; 
-const float SOUND_THRESHOLD_LOW = 0.05f;
-const float SOUND_THRESHOLD_MEDIUM = 0.15f; 
-const float SOUND_THRESHOLD_HIGH = 0.3f;
+const float SOUND_THRESHOLD_LOW = 0.02f;
+const float SOUND_THRESHOLD_MEDIUM = 1.0f; 
+const float SOUND_THRESHOLD_HIGH = 1.3f;
 float MAX_SOUND = 0.0f;
 #define WIFI_SSID "REDE WIFI"    
 #define WIFI_PASS "SENHA WIFI"
