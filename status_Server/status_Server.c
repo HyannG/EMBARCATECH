@@ -21,8 +21,8 @@ const float SOUND_THRESHOLD_LOW = 0.02f;
 const float SOUND_THRESHOLD_MEDIUM = 0.7f; 
 const float SOUND_THRESHOLD_HIGH = 1.3f;
 float MAX_SOUND = 0.0f;
-#define WIFI_SSID "SARA"    
-#define WIFI_PASS "Phb##1586"
+#define WIFI_SSID "REDE WIFI"    
+#define WIFI_PASS "SENHA WIFI"
 
 SemaphoreHandle_t xMutex;
 char button_message[50] = "Botão sem interação";
