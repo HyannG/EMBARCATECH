@@ -18,11 +18,11 @@ const int ADC_RES = 4095;
 const float ADC_REF = 3.3f;  
 const float SOUND_OFFSET = 1.65f; 
 const float SOUND_THRESHOLD_LOW = 0.02f;
-const float SOUND_THRESHOLD_MEDIUM = 1.0f; 
+const float SOUND_THRESHOLD_MEDIUM = 0.7f; 
 const float SOUND_THRESHOLD_HIGH = 1.3f;
 float MAX_SOUND = 0.0f;
-#define WIFI_SSID "REDE WIFI"    
-#define WIFI_PASS "SENHA WIFI"
+#define WIFI_SSID "SARA"    
+#define WIFI_PASS "Phb##1586"
 
 SemaphoreHandle_t xMutex;
 char button_message[50] = "Botão sem interação";
@@ -55,6 +55,18 @@ void init_display() {
     
     memset(ssd, 0, ssd1306_buffer_length);
     render_on_display(ssd, &frame_area);
+}
+
+void init_led_button(){
+    gpio_init(LED_PIN);
+    gpio_set_dir(LED_PIN, GPIO_OUT);
+
+    gpio_init(BUTTON1_PIN);
+    gpio_set_dir(BUTTON1_PIN, GPIO_IN);
+    gpio_pull_up(BUTTON1_PIN);
+    adc_init();
+    adc_gpio_init(MIC);
+    adc_select_input(2);
 }
 
 void update_display_sound(float level, float max) {
@@ -211,16 +223,7 @@ void wifi_connection_task(void *pvParameters) {
 }
 
 void button_monitor_task(void *pvParameters) {
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
-
-    gpio_init(BUTTON1_PIN);
-    gpio_set_dir(BUTTON1_PIN, GPIO_IN);
-    gpio_pull_up(BUTTON1_PIN);
-    adc_init();
-    adc_gpio_init(MIC);
-    adc_select_input(2);
-
+    init_led_button();
     bool button_last_state = false;
     bool button_pressed = false;
 
