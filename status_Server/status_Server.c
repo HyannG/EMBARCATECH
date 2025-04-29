@@ -20,9 +20,9 @@ const float SOUND_OFFSET = 1.65f;
 const float SOUND_THRESHOLD_LOW = 0.05f;
 const float SOUND_THRESHOLD_MEDIUM = 0.15f; 
 const float SOUND_THRESHOLD_HIGH = 0.3f;
-#define WIFI_SSID "rede wifi"    
-#define WIFI_PASS "sua senha"
-
+float MAX_SOUND = 0.0f;
+#define WIFI_SSID "REDE WIFI"    
+#define WIFI_PASS "SENHA WIFI"
 
 SemaphoreHandle_t xMutex;
 char button_message[50] = "Botão sem interação";
@@ -57,11 +57,18 @@ void init_display() {
     render_on_display(ssd, &frame_area);
 }
 
-void update_display_sound(float level) {
+void update_display_sound(float level, float max) {
     memset(ssd, 0, ssd1306_buffer_length);
     char sound_str[20];
+    char max_sound_str[20];
+    
     snprintf(sound_str, sizeof(sound_str), "Som: %.2f V", level);
-    ssd1306_draw_string(ssd, 20, 16, sound_str);
+    ssd1306_draw_string(ssd, 4, 16, sound_str);
+    if (max > 0.0f) {
+        snprintf(max_sound_str, sizeof(max_sound_str), "Maior som: %.2f V", max); 
+        ssd1306_draw_string(ssd, 4, 24, max_sound_str);
+    }
+    
     render_on_display(ssd, &frame_area);
 }
 
@@ -96,14 +103,16 @@ void create_http_response() {
                 "</head>"
                 "<body>"
                 "  <h1>Controle do Microfone</h1>"
-                "  <p class='update'><a href=\"/update\">Atualizar Estado</a></p>"
-                "  <h2>Estado do Botão:</h2>"
-                "  <p>%s</p>"
-                "  <h2>Nível do Som:</h2>"
-                "  <p>%s (%.2f V)</p>"
+                "    <h2>Estado do Botão:</h2>"
+                "    <p>%s</p>"
+                "    <h2>Nível do Som:</h2>"
+                "    <p>%s</p>"
+                "    <p>Nível atual: %.2f V</p>"
+                "    <p>Máximo captado: %.2f V</p>"
+                "  <p><a href=\"/\">Atualizar</a></p>"
                 "</body>"
                 "</html>\r\n",
-                button_message, sound_message, current_sound_level);
+                button_message, sound_message, current_sound_level, MAX_SOUND);
         xSemaphoreGive(xMutex);
     }
 }
@@ -151,11 +160,15 @@ void check_sound_trigger() {
     if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
         current_sound_level = fabs(voltage - SOUND_OFFSET);
 
-        if (current_sound_level >= SOUND_THRESHOLD_HIGH) {
+        if(current_sound_level > MAX_SOUND){
+            MAX_SOUND = current_sound_level;
+        }
+
+        if (MAX_SOUND >= SOUND_THRESHOLD_HIGH) {
             snprintf(sound_message, sizeof(sound_message), "Intensidade alta captada!");
-        } else if (current_sound_level >= SOUND_THRESHOLD_MEDIUM) {
+        } else if (MAX_SOUND >= SOUND_THRESHOLD_MEDIUM) {
             snprintf(sound_message, sizeof(sound_message), "Intensidade média captada!");
-        } else if (current_sound_level >= SOUND_THRESHOLD_LOW) {
+        } else if (MAX_SOUND >= SOUND_THRESHOLD_LOW) {
             snprintf(sound_message, sizeof(sound_message), "Intensidade baixa captada!");
         } else {
             snprintf(sound_message, sizeof(sound_message), "Nenhum som captado!");
@@ -163,6 +176,7 @@ void check_sound_trigger() {
         xSemaphoreGive(xMutex);
     }
 }
+
 
 void wifi_connection_task(void *pvParameters) {
     printf("Iniciando servidor HTTP\n");
@@ -208,25 +222,32 @@ void button_monitor_task(void *pvParameters) {
     adc_select_input(2);
 
     bool button_last_state = false;
+    bool button_pressed = false;
 
     while (true) {
         bool button_state = !gpio_get(BUTTON1_PIN);
 
-        if (button_state != button_last_state) {
+        if (button_state && !button_last_state) {
             if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
-                if (button_state) {
-                    gpio_put(LED_PIN, 1);
-                    snprintf(button_message, sizeof(button_message), "Botão pressionado!");
-                } else {
-                    gpio_put(LED_PIN, 0);
-                    snprintf(button_message, sizeof(button_message), "Botão solto!");
-                }
+                gpio_put(LED_PIN, 1);
+                snprintf(button_message, sizeof(button_message), "Botão pressionado!");
+                MAX_SOUND = 0.0f;
                 xSemaphoreGive(xMutex);
             }
-            button_last_state = button_state;
+            button_pressed = true;
+        } 
+        else if (!button_state && button_last_state) {
+            if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+                gpio_put(LED_PIN, 0);
+                snprintf(button_message, sizeof(button_message), "Botão solto!");
+                xSemaphoreGive(xMutex);
+            }
+            button_pressed = false;
         }
 
-        if (button_state) {
+        button_last_state = button_state;
+
+        if (button_pressed) {
             check_sound_trigger();
         }
 
@@ -240,7 +261,7 @@ void display_update_task(void *pvParameters) {
     while (true) {
         if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
             if (!gpio_get(BUTTON1_PIN)) { 
-                update_display_sound(current_sound_level);
+                update_display_sound(current_sound_level, MAX_SOUND );
             }
             xSemaphoreGive(xMutex);
         }
