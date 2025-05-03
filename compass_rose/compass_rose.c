@@ -17,8 +17,8 @@ const int VRX = 27;
 const int VRY = 26;         
 const int ADC_CHANNEL_X = 1;
 const int ADC_CHANNEL_Y = 0;
-#define WIFI_SSID "wifi nome"     
-#define WIFI_PASS "sua senha" 
+#define WIFI_SSID "rede wifi"    
+#define WIFI_PASS "senha"
 #define THRESHOLD 10       
 #define LED_COUNT 25 
 const int LED_PIN = 7;
@@ -63,6 +63,32 @@ void npWrite() {
         pio_sm_put_blocking(np_pio, sm, leds[i].R);
         pio_sm_put_blocking(np_pio, sm, leds[i].B);
     }
+}
+
+void init_hardware() {
+    npInit(LED_PIN);
+    sleep_ms(1000);
+
+    adc_init();
+    adc_gpio_init(VRX);
+    adc_gpio_init(VRY);
+
+    i2c_init(i2c1, ssd1306_i2c_clock * 1000);
+    gpio_set_function(14, GPIO_FUNC_I2C); 
+    gpio_set_function(15, GPIO_FUNC_I2C); 
+    gpio_pull_up(14);
+    gpio_pull_up(15);
+    ssd1306_init();
+    
+    frame_area.start_column = 0;
+    frame_area.end_column = ssd1306_width - 1;
+    frame_area.start_page = 0;
+    frame_area.end_page = ssd1306_n_pages - 1;
+    
+    calculate_render_area_buffer_length(&frame_area);
+    
+    memset(ssd, 0, ssd1306_buffer_length);
+    render_on_display(ssd, &frame_area);
 }
 
 char http_response[1024];
@@ -113,9 +139,7 @@ static err_t http_callback(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_
         tcp_close(tpcb);
         return ERR_OK;
     }
-
     pbuf_free(p);
-
     create_http_response();
 
     tcp_write(tpcb, http_response, strlen(http_response), TCP_WRITE_FLAG_COPY);
@@ -127,7 +151,6 @@ static err_t connection_callback(void *arg, struct tcp_pcb *newpcb, err_t err) {
     tcp_recv(newpcb, http_callback);  
     return ERR_OK;
 }
-
 static void start_http_server(void) {
     struct tcp_pcb *pcb = tcp_new();
     if (!pcb) {
@@ -144,6 +167,31 @@ static void start_http_server(void) {
     tcp_accept(pcb, connection_callback);  
 
     printf("Servidor HTTP rodando na porta 80...\n");
+}
+
+void wifi_connection() {
+    printf("Iniciando servidor HTTP\n");
+
+    if (cyw43_arch_init()) {
+        printf("Erro ao inicializar o Wi-Fi\n");
+        return;
+    }
+
+    cyw43_arch_enable_sta_mode();
+
+    while (true) {
+        printf("Conectando ao Wi-Fi...\n");
+
+        if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASS, CYW43_AUTH_WPA2_AES_PSK, 10000) == 0) {
+            printf("Conectado!\n");
+            uint8_t *ip_address = (uint8_t*)&(cyw43_state.netif[0].ip_addr.addr);
+            printf("Endereço IP: %d.%d.%d.%d\n", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
+            break;
+        } else {
+            printf("Falha ao conectar. Tentando novamente em 5 segundos...\n");
+            sleep_ms(5000);
+        }
+    }
 }
 
 void joystick_read_axis(uint16_t *x, uint16_t *y) {
@@ -223,62 +271,14 @@ void monitor_joystick() {
 
 int main() {
     stdio_init_all(); 
-    npInit(LED_PIN);
-    sleep_ms(10000);
-    printf("Iniciando servidor HTTP\n");
-
-    if (cyw43_arch_init()) {
-        printf("Erro ao inicializar o Wi-Fi\n");
-        return 1;
-    }
-
-    cyw43_arch_enable_sta_mode();
-
-    while (true) {
-        printf("Conectando ao Wi-Fi...\n");
-
-        if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASS, CYW43_AUTH_WPA2_AES_PSK, 10000) == 0) {
-            printf("Conectado!\n");
-            uint8_t *ip_address = (uint8_t*)&(cyw43_state.netif[0].ip_addr.addr);
-            printf("Endereço IP: %d.%d.%d.%d\n", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
-            break;  
-        } else {
-            printf("Falha ao conectar. Tentando novamente em 5 segundos...\n");
-            sleep_ms(5000);  
-        }
-    }
-
-    adc_init();
-    adc_gpio_init(VRX);
-    adc_gpio_init(VRY);
-
-    joystick_read_axis(&prev_vrx_value, &prev_vry_value);
-    vrx_value = prev_vrx_value;
-    vry_value = prev_vry_value;
-
+    init_hardware();
+    wifi_connection();
     start_http_server();
 
-    i2c_init(i2c1, ssd1306_i2c_clock * 1000);
-    gpio_set_function(14, GPIO_FUNC_I2C); // SDA
-    gpio_set_function(15, GPIO_FUNC_I2C); // SCL
-    gpio_pull_up(14);
-    gpio_pull_up(15);
-    ssd1306_init();
-    
-    frame_area.start_column = 0;
-    frame_area.end_column = ssd1306_width - 1;
-    frame_area.start_page = 0;
-    frame_area.end_page = ssd1306_n_pages - 1;
-    
-    calculate_render_area_buffer_length(&frame_area);
-    
-    memset(ssd, 0, ssd1306_buffer_length);
-    render_on_display(ssd, &frame_area);
 
     while (true) {
         cyw43_arch_poll();
         monitor_joystick();
-        
         sleep_ms(100);
     }
 
